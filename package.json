@@ -32,7 +32,7 @@
     "resend": "^4.0.0"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.28.0",
+    "drizzle-kit": "^0.31.11",
     "tsx": "^4.19.0",
     "vitest": "^2.1.0",
     "@playwright/test": "^1.48.0",
