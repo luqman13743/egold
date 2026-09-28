@@ -14,7 +14,7 @@ export default function ForgotPasswordPage() {
     const email = String(new FormData(e.currentTarget).get("email"));
 
     startTransition(async () => {
-      const result = await authClient.forgetPassword({
+      const result = await authClient.requestPasswordReset({
         email,
         redirectTo: "/reset-password",
       });

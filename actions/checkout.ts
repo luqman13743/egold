@@ -12,7 +12,7 @@ import { recordAudit } from "@/lib/audit";
 
 const CART_COOKIE = "cart_token";
 
-export class CheckoutError extends Error {}
+class CheckoutError extends Error {}
 
 export async function placeOrder(input: unknown) {
   const data = checkoutSchema.parse(input) as CheckoutInput;

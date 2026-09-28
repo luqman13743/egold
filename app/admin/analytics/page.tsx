@@ -2,6 +2,8 @@ import { sql, gte, eq, and, desc } from "drizzle-orm";
 import { db, orders, orderItems } from "@/db";
 import { formatPrice } from "@/lib/format";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Analytics — Admin" };
 
 export default async function AdminAnalyticsPage() {

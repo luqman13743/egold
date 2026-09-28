@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getDashboardStats } from "@/services/admin-dashboard";
 import { formatPrice } from "@/lib/format";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Dashboard — Admin" };
 
 export default async function AdminDashboardPage() {

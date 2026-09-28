@@ -15,6 +15,7 @@ import {
 
 // ---------- enums ----------
 export const roleEnum = pgEnum("role", ["super_admin", "admin", "manager", "staff", "customer"]);
+
 export const orderStatusEnum = pgEnum("order_status", [
   "pending",
   "confirmed",
@@ -25,10 +26,22 @@ export const orderStatusEnum = pgEnum("order_status", [
   "returned",
   "refunded",
 ]);
-export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid", "failed", "refunded"]);
-export const productStatusEnum = pgEnum("product_status", ["draft", "published", "archived"]);
+
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "pending",
+  "paid",
+  "failed",
+  "refunded",
+]);
+
+export const productStatusEnum = pgEnum("product_status", [
+  "draft",
+  "published",
+  "archived",
+]);
 
 // ---------- auth (Better Auth compatible shape) ----------
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -44,33 +57,64 @@ export const users = pgTable("users", {
 
 export const accounts = pgTable("accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  providerId: text("provider_id").notNull(), // "credential" | "google" | ...
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  providerId: text("provider_id").notNull(),
   accountId: text("account_id").notNull(),
-  passwordHash: text("password_hash"), // never expose to client
+
+  // Better Auth
+  password: text("password"),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
-  expiresAt: timestamp("expires_at"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  scope: text("scope"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => ({
-  providerAccountIdx: uniqueIndex("accounts_provider_account_idx").on(t.providerId, t.accountId),
+  providerAccountIdx: uniqueIndex("accounts_provider_account_idx").on(
+    t.providerId,
+    t.accountId,
+  ),
   userIdx: index("accounts_user_idx").on(t.userId),
 }));
 
 export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
   token: text("token").notNull(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   expiresAt: timestamp("expires_at").notNull(),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => ({
   tokenIdx: uniqueIndex("sessions_token_idx").on(t.token),
   userIdx: index("sessions_user_idx").on(t.userId),
 }));
 
+export const verifications = pgTable("verifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => ({
+  identifierIdx: index("verifications_identifier_idx").on(t.identifier),
+}));
+
 // ---------- catalog ----------
+
 export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
@@ -110,14 +154,15 @@ export const products = pgTable("products", {
   status: productStatusEnum("status").notNull().default("draft"),
   seoTitle: text("seo_title"),
   seoDescription: text("seo_description"),
-  // Perfume scent profile — each 0-100, shown as animated bars on the
-  // product page (see components/scent-profile.tsx)
+
+  // Perfume scent profile
   fragranceIntensity: integer("fragrance_intensity"),
   sweetness: integer("sweetness"),
   longevity: integer("longevity"),
-  scentNotes: text("scent_notes"), // e.g. "Top: Bergamot, Citrus — Heart: Jasmine, Rose — Base: Sandalwood, Musk"
+  scentNotes: text("scent_notes"),
   ingredients: text("ingredients"),
-  deletedAt: timestamp("deleted_at"), // soft delete
+
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => ({
@@ -129,8 +174,9 @@ export const products = pgTable("products", {
 
 export const productImages = pgTable("product_images", {
   id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
-  // R2 object key, not a raw filename — see lib/r2
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
   objectKey: text("object_key").notNull(),
   altText: text("alt_text"),
   position: integer("position").notNull().default(0),
@@ -141,11 +187,18 @@ export const productImages = pgTable("product_images", {
 
 export const productVariants = pgTable("product_variants", {
   id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
   sku: varchar("sku", { length: 100 }).notNull(),
-  name: text("name").notNull(), // e.g. "Red / Large"
-  options: jsonb("options").$type<Record<string, string>>().notNull(),
-  priceOverride: numeric("price_override", { precision: 12, scale: 2 }),
+  name: text("name").notNull(),
+  options: jsonb("options")
+    .$type<Record<string, string>>()
+    .notNull(),
+  priceOverride: numeric("price_override", {
+    precision: 12,
+    scale: 2,
+  }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => ({
   skuIdx: uniqueIndex("product_variants_sku_idx").on(t.sku),
@@ -154,8 +207,12 @@ export const productVariants = pgTable("product_variants", {
 
 export const inventory = pgTable("inventory", {
   id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
-  variantId: uuid("variant_id").references(() => productVariants.id, { onDelete: "cascade" }),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  variantId: uuid("variant_id").references(() => productVariants.id, {
+    onDelete: "cascade",
+  }),
   stock: integer("stock").notNull().default(0),
   reserved: integer("reserved").notNull().default(0),
   lowStockThreshold: integer("low_stock_threshold").notNull().default(5),
@@ -165,18 +222,25 @@ export const inventory = pgTable("inventory", {
 }));
 
 // ---------- cart ----------
+
 export const carts = pgTable("carts", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
-  sessionToken: text("session_token"), // guest carts
+  userId: uuid("user_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
+  sessionToken: text("session_token"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const cartItems = pgTable("cart_items", {
   id: uuid("id").primaryKey().defaultRandom(),
-  cartId: uuid("cart_id").notNull().references(() => carts.id, { onDelete: "cascade" }),
-  productId: uuid("product_id").notNull().references(() => products.id),
+  cartId: uuid("cart_id")
+    .notNull()
+    .references(() => carts.id, { onDelete: "cascade" }),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id),
   variantId: uuid("variant_id").references(() => productVariants.id),
   quantity: integer("quantity").notNull().default(1),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -185,9 +249,12 @@ export const cartItems = pgTable("cart_items", {
 }));
 
 // ---------- addresses ----------
+
 export const addresses = pgTable("addresses", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   fullName: text("full_name").notNull(),
   phone: text("phone").notNull(),
   line1: text("line1").notNull(),
@@ -203,18 +270,42 @@ export const addresses = pgTable("addresses", {
 }));
 
 // ---------- orders ----------
+
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id),
   addressId: uuid("address_id").references(() => addresses.id),
   status: orderStatusEnum("status").notNull().default("pending"),
-  paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
-  paymentMethod: text("payment_method"), // "safepay" | "cod"
-  subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull(),
-  discountTotal: numeric("discount_total", { precision: 12, scale: 2 }).notNull().default("0"),
-  shippingTotal: numeric("shipping_total", { precision: 12, scale: 2 }).notNull().default("0"),
-  taxTotal: numeric("tax_total", { precision: 12, scale: 2 }).notNull().default("0"),
-  total: numeric("total", { precision: 12, scale: 2 }).notNull(),
+  paymentStatus: paymentStatusEnum("payment_status")
+    .notNull()
+    .default("pending"),
+  paymentMethod: text("payment_method"),
+  subtotal: numeric("subtotal", {
+    precision: 12,
+    scale: 2,
+  }).notNull(),
+  discountTotal: numeric("discount_total", {
+    precision: 12,
+    scale: 2,
+  })
+    .notNull()
+    .default("0"),
+  shippingTotal: numeric("shipping_total", {
+    precision: 12,
+    scale: 2,
+  })
+    .notNull()
+    .default("0"),
+  taxTotal: numeric("tax_total", {
+    precision: 12,
+    scale: 2,
+  })
+    .notNull()
+    .default("0"),
+  total: numeric("total", {
+    precision: 12,
+    scale: 2,
+  }).notNull(),
   currency: varchar("currency", { length: 3 }).notNull().default("PKR"),
   trackingNumber: text("tracking_number"),
   couponCode: text("coupon_code"),
@@ -227,50 +318,81 @@ export const orders = pgTable("orders", {
 
 export const orderItems = pgTable("order_items", {
   id: uuid("id").primaryKey().defaultRandom(),
-  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
-  productId: uuid("product_id").notNull().references(() => products.id),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id),
   variantId: uuid("variant_id").references(() => productVariants.id),
-  productName: text("product_name").notNull(), // snapshot at purchase time
+  productName: text("product_name").notNull(),
   quantity: integer("quantity").notNull(),
-  unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).notNull(), // price AT purchase
+  unitPrice: numeric("unit_price", {
+    precision: 12,
+    scale: 2,
+  }).notNull(),
 }, (t) => ({
   orderIdx: index("order_items_order_idx").on(t.orderId),
 }));
 
 // ---------- payments ----------
+
 export const payments = pgTable("payments", {
   id: uuid("id").primaryKey().defaultRandom(),
-  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
   provider: text("provider").notNull().default("safepay"),
   providerPaymentId: text("provider_payment_id").notNull(),
   status: paymentStatusEnum("status").notNull().default("pending"),
-  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  amount: numeric("amount", {
+    precision: 12,
+    scale: 2,
+  }).notNull(),
   currency: varchar("currency", { length: 3 }).notNull().default("PKR"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => ({
-  providerPaymentIdx: uniqueIndex("payments_provider_payment_idx").on(t.providerPaymentId),
+  providerPaymentIdx: uniqueIndex("payments_provider_payment_idx").on(
+    t.providerPaymentId,
+  ),
   orderIdx: index("payments_order_idx").on(t.orderId),
 }));
 
-// Dedupe table for webhook idempotency — see app/api/webhooks/safepay/route.ts
-export const processedWebhookEvents = pgTable("processed_webhook_events", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  providerEventId: text("provider_event_id").notNull(),
-  eventType: text("event_type").notNull(),
-  processedAt: timestamp("processed_at").notNull().defaultNow(),
-}, (t) => ({
-  eventIdx: uniqueIndex("processed_webhook_events_id_idx").on(t.providerEventId),
-}));
+// Dedupe table for webhook idempotency
+export const processedWebhookEvents = pgTable(
+  "processed_webhook_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    providerEventId: text("provider_event_id").notNull(),
+    eventType: text("event_type").notNull(),
+    processedAt: timestamp("processed_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    eventIdx: uniqueIndex("processed_webhook_events_id_idx").on(
+      t.providerEventId,
+    ),
+  }),
+);
 
 // ---------- coupons ----------
+
 export const coupons = pgTable("coupons", {
   id: uuid("id").primaryKey().defaultRandom(),
   code: varchar("code", { length: 50 }).notNull(),
-  type: text("type").notNull(), // "percentage" | "fixed"
-  value: numeric("value", { precision: 12, scale: 2 }).notNull(),
-  minOrderAmount: numeric("min_order_amount", { precision: 12, scale: 2 }),
-  maxDiscount: numeric("max_discount", { precision: 12, scale: 2 }),
+  type: text("type").notNull(),
+  value: numeric("value", {
+    precision: 12,
+    scale: 2,
+  }).notNull(),
+  minOrderAmount: numeric("min_order_amount", {
+    precision: 12,
+    scale: 2,
+  }),
+  maxDiscount: numeric("max_discount", {
+    precision: 12,
+    scale: 2,
+  }),
   startsAt: timestamp("starts_at"),
   expiresAt: timestamp("expires_at"),
   usageLimit: integer("usage_limit"),
@@ -283,42 +405,70 @@ export const coupons = pgTable("coupons", {
 
 export const couponUsage = pgTable("coupon_usage", {
   id: uuid("id").primaryKey().defaultRandom(),
-  couponId: uuid("coupon_id").notNull().references(() => coupons.id, { onDelete: "cascade" }),
-  userId: uuid("user_id").notNull().references(() => users.id),
-  orderId: uuid("order_id").notNull().references(() => orders.id),
+  couponId: uuid("coupon_id")
+    .notNull()
+    .references(() => coupons.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id),
   usedAt: timestamp("used_at").notNull().defaultNow(),
 }, (t) => ({
-  couponUserIdx: index("coupon_usage_coupon_user_idx").on(t.couponId, t.userId),
+  couponUserIdx: index("coupon_usage_coupon_user_idx").on(
+    t.couponId,
+    t.userId,
+  ),
 }));
 
 // ---------- reviews / wishlist / notifications / audit ----------
+
 export const reviews = pgTable("reviews", {
   id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   rating: integer("rating").notNull(),
   title: text("title"),
   body: text("body"),
-  verifiedPurchase: boolean("verified_purchase").notNull().default(false),
-  status: text("status").notNull().default("pending"), // pending|approved|rejected|hidden
+  verifiedPurchase: boolean("verified_purchase")
+    .notNull()
+    .default(false),
+  status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => ({
   productIdx: index("reviews_product_idx").on(t.productId),
-  userProductIdx: uniqueIndex("reviews_user_product_idx").on(t.userId, t.productId),
+  userProductIdx: uniqueIndex("reviews_user_product_idx").on(
+    t.userId,
+    t.productId,
+  ),
 }));
 
 export const wishlists = pgTable("wishlists", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => ({
-  userProductIdx: uniqueIndex("wishlists_user_product_idx").on(t.userId, t.productId),
+  userProductIdx: uniqueIndex("wishlists_user_product_idx").on(
+    t.userId,
+    t.productId,
+  ),
 }));
 
 export const notifications = pgTable("notifications", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
   message: text("message").notNull(),
   read: boolean("read").notNull().default(false),
@@ -330,7 +480,7 @@ export const notifications = pgTable("notifications", {
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
   actorId: uuid("actor_id").references(() => users.id),
-  action: text("action").notNull(), // "product.create", "order.status_change", ...
+  action: text("action").notNull(),
   targetType: text("target_type"),
   targetId: text("target_id"),
   metadata: jsonb("metadata"),

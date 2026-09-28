@@ -1,6 +1,8 @@
 import { db } from "@/db";
 import { InventoryRow } from "@/components/admin/inventory-row";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Inventory — Admin" };
 
 export default async function AdminInventoryPage() {

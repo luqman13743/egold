@@ -32,7 +32,7 @@ async function seed() {
     userId: admin.id,
     providerId: "credential",
     accountId: admin.id,
-    passwordHash: hashPassword(DEMO_ADMIN_PASSWORD),
+    password: hashPassword(DEMO_ADMIN_PASSWORD),
   });
 
   const [customer] = await db
@@ -43,7 +43,7 @@ async function seed() {
     userId: customer.id,
     providerId: "credential",
     accountId: customer.id,
-    passwordHash: hashPassword(DEMO_CUSTOMER_PASSWORD),
+    password: hashPassword(DEMO_CUSTOMER_PASSWORD),
   });
 
   const [electronics] = await db.insert(categories).values({ name: "Electronics", slug: "electronics" }).returning();

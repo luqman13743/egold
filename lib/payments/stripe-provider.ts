@@ -23,7 +23,7 @@ if (!secretKey) {
 }
 
 const stripe = new Stripe(secretKey ?? "sk_test_placeholder", {
-  apiVersion: "2024-09-30.acacia",
+  apiVersion: "2026-08-26.dahlia",
 });
 
 function mapStripeStatus(status: Stripe.PaymentIntent.Status): PaymentStatus {

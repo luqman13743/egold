@@ -12,16 +12,20 @@ import type {
   PaymentStatus,
 } from "./types";
 
-// Server-only — Safepay is Pakistan's hosted-checkout gateway, routing cards,
-// JazzCash and EasyPaisa through one integration. Never import this file
-// from a Client Component.
-
 const apiKey = process.env.SAFEPAY_API_KEY;
 const v1Secret = process.env.SAFEPAY_V1_SECRET;
 const webhookSecret = process.env.SAFEPAY_WEBHOOK_SECRET;
-const environment = (process.env.SAFEPAY_ENVIRONMENT ?? "sandbox") as "sandbox" | "production";
+
+const environment = (
+  process.env.SAFEPAY_ENVIRONMENT === "production"
+    ? "production"
+    : "sandbox"
+) as ConstructorParameters<typeof Safepay>[0]["environment"];
+
 const apiBase =
-  environment === "production" ? "https://api.getsafepay.com" : "https://sandbox.api.getsafepay.com";
+  process.env.SAFEPAY_ENVIRONMENT === "production"
+    ? "https://api.getsafepay.com"
+    : "https://sandbox.api.getsafepay.com";
 
 if (!apiKey || !v1Secret || !webhookSecret) {
   if (process.env.NODE_ENV === "production") {

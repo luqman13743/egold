@@ -1,6 +1,8 @@
 import { db, categories } from "@/db";
 import { TaxonomyManager } from "@/components/admin/taxonomy-manager";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Categories — Admin" };
 
 export default async function AdminCategoriesPage() {

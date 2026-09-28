@@ -2,6 +2,8 @@ import { desc, eq } from "drizzle-orm";
 import { db, reviews } from "@/db";
 import { ReviewModerationRow } from "@/components/admin/review-moderation-row";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Reviews — Admin" };
 
 export default async function AdminReviewsPage() {
