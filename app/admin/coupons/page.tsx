@@ -2,6 +2,8 @@ import { desc } from "drizzle-orm";
 import { db, coupons } from "@/db";
 import { CouponManager } from "@/components/admin/coupon-manager";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Coupons — Admin" };
 
 export default async function AdminCouponsPage() {

@@ -1,6 +1,8 @@
 import { desc, eq } from "drizzle-orm";
 import { db, auditLogs, users } from "@/db";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Audit logs — Admin" };
 
 export default async function AdminAuditLogsPage() {

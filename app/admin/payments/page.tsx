@@ -3,6 +3,8 @@ import { db, payments } from "@/db";
 import { formatPrice } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Payments — Admin" };
 
 export default async function AdminPaymentsPage() {

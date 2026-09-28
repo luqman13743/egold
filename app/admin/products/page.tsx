@@ -4,6 +4,8 @@ import { db, products } from "@/db";
 import { formatPrice } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Products — Admin" };
 
 export default async function AdminProductsPage() {

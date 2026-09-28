@@ -2,6 +2,8 @@ import Link from "next/link";
 import { eq, desc } from "drizzle-orm";
 import { db, users } from "@/db";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Customers — Admin" };
 
 export default async function AdminCustomersPage() {
