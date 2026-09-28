@@ -3,6 +3,8 @@ import { db, users } from "@/db";
 import { hasRole } from "@/lib/auth/rbac";
 import { UserRoleRow } from "@/components/admin/user-role-row";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Users — Admin" };
 
 export default async function AdminUsersPage() {
