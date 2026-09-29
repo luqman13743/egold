@@ -43,7 +43,7 @@ export const productStatusEnum = pgEnum("product_status", [
 // ---------- auth (Better Auth compatible shape) ----------
 
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: varchar("email", { length: 255 }).notNull(),
   emailVerified: boolean("email_verified").notNull().default(false),
@@ -56,8 +56,8 @@ export const users = pgTable("users", {
 }));
 
 export const accounts = pgTable("accounts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+  id: text("id").primaryKey(),
+  userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
 
@@ -84,9 +84,8 @@ export const accounts = pgTable("accounts", {
 }));
 
 export const sessions = pgTable("sessions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-
-  userId: uuid("user_id")
+  id: text("id").primaryKey(),
+  userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
 
@@ -103,7 +102,7 @@ export const sessions = pgTable("sessions", {
 }));
 
 export const verifications = pgTable("verifications", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
@@ -225,7 +224,7 @@ export const inventory = pgTable("inventory", {
 
 export const carts = pgTable("carts", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id, {
+  userId: text("user_id").references(() => users.id, {
     onDelete: "cascade",
   }),
   sessionToken: text("session_token"),
@@ -252,7 +251,7 @@ export const cartItems = pgTable("cart_items", {
 
 export const addresses = pgTable("addresses", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+  userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   fullName: text("full_name").notNull(),
@@ -273,7 +272,7 @@ export const addresses = pgTable("addresses", {
 
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id),
+  userId: text("user_id").references(() => users.id),
   addressId: uuid("address_id").references(() => addresses.id),
   status: orderStatusEnum("status").notNull().default("pending"),
   paymentStatus: paymentStatusEnum("payment_status")
@@ -408,7 +407,7 @@ export const couponUsage = pgTable("coupon_usage", {
   couponId: uuid("coupon_id")
     .notNull()
     .references(() => coupons.id, { onDelete: "cascade" }),
-  userId: uuid("user_id")
+  userId: text("user_id")
     .notNull()
     .references(() => users.id),
   orderId: uuid("order_id")
@@ -429,7 +428,7 @@ export const reviews = pgTable("reviews", {
   productId: uuid("product_id")
     .notNull()
     .references(() => products.id, { onDelete: "cascade" }),
-  userId: uuid("user_id")
+  userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   rating: integer("rating").notNull(),
@@ -450,7 +449,7 @@ export const reviews = pgTable("reviews", {
 
 export const wishlists = pgTable("wishlists", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+  userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   productId: uuid("product_id")
@@ -466,7 +465,7 @@ export const wishlists = pgTable("wishlists", {
 
 export const notifications = pgTable("notifications", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
+  userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
@@ -478,8 +477,8 @@ export const notifications = pgTable("notifications", {
 }));
 
 export const auditLogs = pgTable("audit_logs", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  actorId: uuid("actor_id").references(() => users.id),
+  id: text("id").primaryKey(),
+  actorId: text("actor_id").references(() => users.id),
   action: text("action").notNull(),
   targetType: text("target_type"),
   targetId: text("target_id"),

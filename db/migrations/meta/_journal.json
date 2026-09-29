@@ -15,6 +15,13 @@
       "when": 1790509262608,
       "tag": "0001_robust_serpent_society",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790668249534,
+      "tag": "0002_rapid_electro",
+      "breakpoints": true
     }
   ]
 }
