@@ -13,7 +13,11 @@ export const auth = betterAuth({
   usePlural: true,
 }),
   secret,
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  baseURL: {
+  allowedHosts: ["egold.vercel.app", "*.vercel.app", "localhost:3000"],
+  protocol: process.env.NODE_ENV === "development" ? "http" : "https",
+  fallback: "https://egold.vercel.app",
+},
 
   emailAndPassword: {
     enabled: true,
