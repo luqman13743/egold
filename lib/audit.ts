@@ -13,6 +13,7 @@ interface AuditInput {
 // this table is for accountability, not a secrets log.
 export async function recordAudit(input: AuditInput) {
   await db.insert(auditLogs).values({
+    id: crypto.randomUUID(),
     actorId: input.actorId,
     action: input.action,
     targetType: input.targetType,
