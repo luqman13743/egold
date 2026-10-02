@@ -4,6 +4,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db, products, productImages, inventory } from "@/db";
+import { deleteObject } from "@/lib/r2/upload";
 import { requireRole } from "@/lib/auth/rbac";
 import { recordAudit } from "@/lib/audit";
 import {
@@ -13,7 +14,9 @@ import {
 } from "@/schemas/product";
 
 function clientIp() {
-  return headers().then((h) => h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null);
+  return headers().then(
+    (h) => h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null
+  );
 }
 
 export async function createProduct(input: unknown) {
@@ -68,20 +71,33 @@ export async function updateProduct(input: unknown) {
   const data = updateProductSchema.parse(input);
   const { id, ...fields } = data;
 
-  const existing = await db.query.products.findFirst({ where: eq(products.id, id) });
-  if (!existing) throw new Error("Product not found");
+  const existing = await db.query.products.findFirst({
+    where: eq(products.id, id),
+  });
+
+  if (!existing) {
+    throw new Error("Product not found");
+  }
 
   // Track price changes specifically — they're operationally sensitive and
   // called out in the audit requirements.
-  const priceChanged = fields.price !== undefined && String(fields.price) !== existing.price;
+  const priceChanged =
+    fields.price !== undefined &&
+    String(fields.price) !== existing.price;
 
   const [updated] = await db
     .update(products)
     .set({
       ...fields,
       price: fields.price !== undefined ? String(fields.price) : undefined,
-      salePrice: fields.salePrice !== undefined ? String(fields.salePrice) : undefined,
-      costPrice: fields.costPrice !== undefined ? String(fields.costPrice) : undefined,
+      salePrice:
+        fields.salePrice !== undefined
+          ? String(fields.salePrice)
+          : undefined,
+      costPrice:
+        fields.costPrice !== undefined
+          ? String(fields.costPrice)
+          : undefined,
       updatedAt: new Date(),
     })
     .where(eq(products.id, id))
@@ -89,22 +105,38 @@ export async function updateProduct(input: unknown) {
 
   await recordAudit({
     actorId: session.user.id,
-    action: priceChanged ? "product.price_change" : "product.update",
+    action: priceChanged
+      ? "product.price_change"
+      : "product.update",
     targetType: "product",
     targetId: id,
-    metadata: priceChanged ? { from: existing.price, to: String(fields.price) } : { fields: Object.keys(fields) },
+    metadata: priceChanged
+      ? {
+          from: existing.price,
+          to: String(fields.price),
+        }
+      : {
+          fields: Object.keys(fields),
+        },
     ipAddress: await clientIp(),
   });
 
   revalidatePath("/admin/products");
   revalidatePath(`/product/${updated.slug}`);
+
   return updated;
 }
 
 export async function archiveProduct(productId: string) {
   const session = await requireRole("manager");
 
-  await db.update(products).set({ status: "archived", updatedAt: new Date() }).where(eq(products.id, productId));
+  await db
+    .update(products)
+    .set({
+      status: "archived",
+      updatedAt: new Date(),
+    })
+    .where(eq(products.id, productId));
 
   await recordAudit({
     actorId: session.user.id,
@@ -121,7 +153,12 @@ export async function softDeleteProduct(productId: string) {
   // Deletion is more destructive than archiving — require admin, not just manager.
   const session = await requireRole("admin");
 
-  await db.update(products).set({ deletedAt: new Date() }).where(eq(products.id, productId));
+  await db
+    .update(products)
+    .set({
+      deletedAt: new Date(),
+    })
+    .where(eq(products.id, productId));
 
   await recordAudit({
     actorId: session.user.id,
@@ -134,10 +171,19 @@ export async function softDeleteProduct(productId: string) {
   revalidatePath("/admin/products");
 }
 
-export async function setProductStatus(productId: string, status: "draft" | "published" | "archived") {
+export async function setProductStatus(
+  productId: string,
+  status: "draft" | "published" | "archived"
+) {
   const session = await requireRole("manager");
 
-  await db.update(products).set({ status, updatedAt: new Date() }).where(eq(products.id, productId));
+  await db
+    .update(products)
+    .set({
+      status,
+      updatedAt: new Date(),
+    })
+    .where(eq(products.id, productId));
 
   await recordAudit({
     actorId: session.user.id,
@@ -155,7 +201,10 @@ export async function addProductImage(input: unknown) {
   const session = await requireRole("manager");
   const data = addProductImageSchema.parse(input);
 
-  const [image] = await db.insert(productImages).values(data).returning();
+  const [image] = await db
+    .insert(productImages)
+    .values(data)
+    .returning();
 
   await recordAudit({
     actorId: session.user.id,
@@ -166,44 +215,138 @@ export async function addProductImage(input: unknown) {
   });
 
   revalidatePath("/admin/products");
+
   return image;
 }
 
-export async function reorderProductImages(productId: string, orderedImageIds: string[]) {
+/**
+ * Remove a product image from both R2 storage and the database.
+ *
+ * After removal, remaining images are re-numbered so that:
+ * position 0 = main product image.
+ */
+export async function removeProductImage(imageId: string) {
+  const session = await requireRole("manager");
+
+  const image = await db.query.productImages.findFirst({
+    where: eq(productImages.id, imageId),
+  });
+
+  if (!image) {
+    throw new Error("Image not found");
+  }
+
+  // Delete the actual image from Cloudflare R2 first.
+  await deleteObject(image.objectKey);
+
+  // Remove the image record from the database.
+  await db
+    .delete(productImages)
+    .where(eq(productImages.id, imageId));
+
+  // Get remaining images in their current order.
+  const remainingImages = await db.query.productImages.findMany({
+    where: eq(productImages.productId, image.productId),
+    orderBy: (img, { asc }) => [asc(img.position)],
+  });
+
+  // Re-number positions so the first remaining image becomes position 0.
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < remainingImages.length; i++) {
+      await tx
+        .update(productImages)
+        .set({
+          position: i,
+        })
+        .where(eq(productImages.id, remainingImages[i].id));
+    }
+  });
+
+  await recordAudit({
+    actorId: session.user.id,
+    action: "product.image_remove",
+    targetType: "product",
+    targetId: image.productId,
+    metadata: {
+      imageId,
+      objectKey: image.objectKey,
+    },
+    ipAddress: await clientIp(),
+  });
+
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${image.productId}/edit`);
+}
+
+export async function reorderProductImages(
+  productId: string,
+  orderedImageIds: string[]
+) {
   await requireRole("manager");
 
   await db.transaction(async (tx) => {
     for (let i = 0; i < orderedImageIds.length; i++) {
       await tx
         .update(productImages)
-        .set({ position: i })
-        .where(and(eq(productImages.id, orderedImageIds[i]), eq(productImages.productId, productId)));
+        .set({
+          position: i,
+        })
+        .where(
+          and(
+            eq(productImages.id, orderedImageIds[i]),
+            eq(productImages.productId, productId)
+          )
+        );
     }
   });
 
   revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${productId}/edit`);
 }
 
-export async function adjustInventory(productId: string, delta: number, reason: string) {
+export async function adjustInventory(
+  productId: string,
+  delta: number,
+  reason: string
+) {
   const session = await requireRole("staff");
 
   await db.transaction(async (tx) => {
     const record = await tx.query.inventory.findFirst({
-      where: and(eq(inventory.productId, productId), isNull(inventory.variantId)),
+      where: and(
+        eq(inventory.productId, productId),
+        isNull(inventory.variantId)
+      ),
     });
-    if (!record) throw new Error("Inventory record not found");
+
+    if (!record) {
+      throw new Error("Inventory record not found");
+    }
 
     const newStock = record.stock + delta;
-    if (newStock < 0) throw new Error("Stock cannot go negative");
 
-    await tx.update(inventory).set({ stock: newStock, updatedAt: new Date() }).where(eq(inventory.id, record.id));
+    if (newStock < 0) {
+      throw new Error("Stock cannot go negative");
+    }
+
+    await tx
+      .update(inventory)
+      .set({
+        stock: newStock,
+        updatedAt: new Date(),
+      })
+      .where(eq(inventory.id, record.id));
 
     await recordAudit({
       actorId: session.user.id,
       action: "inventory.adjust",
       targetType: "product",
       targetId: productId,
-      metadata: { delta, reason, newStock },
+      metadata: {
+        delta,
+        reason,
+        newStock,
+      },
       ipAddress: await clientIp(),
     });
   });
