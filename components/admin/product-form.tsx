@@ -523,9 +523,7 @@ export function ProductForm({ mode, initial }: ProductFormProps) {
                     >
                       <div className="relative aspect-square bg-sand dark:bg-white/5">
                         <Image
-                          src={publicUrlFor(
-                            image.objectKey
-                          )}
+                          src={image.publicUrl}
                           alt={
                             image.altText ??
                             initial?.name ??
