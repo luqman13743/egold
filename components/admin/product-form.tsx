@@ -11,7 +11,7 @@ import {
   reorderProductImages,
 } from "@/actions/products";
 import { requestProductImageUpload } from "@/actions/uploads";
-import { publicUrlFor } from "@/lib/r2/upload";
+
 
 const inputClass =
   "w-full rounded border border-sand dark:border-white/10 bg-transparent px-3 py-2 text-sm";
