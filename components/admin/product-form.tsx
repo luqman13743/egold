@@ -38,10 +38,11 @@ interface ProductFormProps {
     scentNotes?: string | null;
     ingredients?: string | null;
     images?: {
-      id: string;
-      objectKey: string;
-      altText?: string | null;
-      position: number;
+    id: string;
+    objectKey: string;
+    publicUrl: string;
+    altText?: string | null;
+    position: number;
     }[];
   };
 }
